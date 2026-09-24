@@ -1,0 +1,400 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ad36964a-4c95-4124-a90f-03c140df4efa",
+      "name": "Telegram Trigger",
+      "webhookId": "3e0f8620-2d7b-4909-b4c3-a37763f4883a",
+      "credentials": {
+        "telegramApi": {
+          "id": "fJThwxglJcAWNHoH",
+          "name": "Капитан очевидность"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openrouter/free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        224,
+        64
+      ],
+      "id": "483efade-fcf1-48a6-998b-c3700c8aa08b",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "RiLUzWgKrxtFEC5A",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Ты помощник, извлекающий данные о встречах.\nСегодняшняя дата: {{$today}}\nОбязательно используй эту дату для правильного расчета относительных дней (завтра, послезавтра, через неделю). "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        304,
+        -176
+      ],
+      "id": "55e0308b-c712-49ca-8115-72606e37fccd",
+      "name": "AI Agent",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "=Встреча успешно записана!",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        -272
+      ],
+      "id": "bba277af-fe99-4297-8921-7b495a46a71c",
+      "name": "Send a text message",
+      "webhookId": "3e1ed9e2-4d25-4b2b-a6e4-df9a1caf9686",
+      "credentials": {
+        "telegramApi": {
+          "id": "fJThwxglJcAWNHoH",
+          "name": "Капитан очевидность"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.from.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        80
+      ],
+      "id": "7f30d631-6920-41e7-a4e6-5f28df4f6fe6",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Дата встречи в формате YYYY-MM-DD. Используй текущую дату для расчета относительных дней (завтра, послезавтра).\"\n    },\n    \"time\": {\n      \"type\": \"string\",\n      \"description\": \"Время встречи в формате HH:MM.\"\n    },\n    \"topic\": {\n      \"type\": \"string\",\n      \"description\": \"Тема или суть встречи.\"\n    },\n    \"participant\": {\n      \"type\": \"string\",\n      \"description\": \"Имя участника или название компании, с кем планируется встреча.\"\n    },\n    \"error\": {\n      \"type\": \"string\",\n      \"description\": \"Если в сообщении нет точной даты, времени ИЛИ темы встречи, напиши текст ошибки (например: Уточните тему). Если все три параметра есть, оставь поле пустым.\"\n    }\n  },\n  \"required\": [\n    \"date\",\n    \"time\",\n    \"topic\",\n    \"participant\",\n    \"error\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        16
+      ],
+      "id": "adbe67e2-b717-4635-9a41-67af8f524f60",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "906b34f0-cdb7-4652-ad20-4ff36391ddee",
+              "leftValue": "={{ $json.output.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        -176
+      ],
+      "id": "c5f0f191-e964-402b-a1e0-a2b4dec0031d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1lMzbwpGhnf8VywuIx1StRKXyanQP5Ql3KLi2DGzyJ7A",
+          "mode": "list",
+          "cachedResultName": "test-n8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lMzbwpGhnf8VywuIx1StRKXyanQP5Ql3KLi2DGzyJ7A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "проект1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1lMzbwpGhnf8VywuIx1StRKXyanQP5Ql3KLi2DGzyJ7A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Дата": "={{ $json.output.date }}",
+            "Время": "={{ $json.output.time }}",
+            "Тема": "={{ $json.output.topic }}",
+            "Участинк": "={{ $json.output.participant }}",
+            "Статус": "={{ $json.output.error }}"
+          },
+          "matchingColumns": [
+            "Дата"
+          ],
+          "schema": [
+            {
+              "id": "Дата",
+              "displayName": "Дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Время",
+              "displayName": "Время",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Тема",
+              "displayName": "Тема",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Участинк",
+              "displayName": "Участинк",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Статус",
+              "displayName": "Статус",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        -272
+      ],
+      "id": "95fbc815-938a-4fa6-83be-4de6894a9661",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "RrsoByDIKUDtPQbj",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('AI Agent').item.json.output.error }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -64
+      ],
+      "id": "9e57973d-b99b-4efe-9b45-b26c8e57131c",
+      "name": "Send a text message1",
+      "webhookId": "3e1ed9e2-4d25-4b2b-a6e4-df9a1caf9686",
+      "credentials": {
+        "telegramApi": {
+          "id": "fJThwxglJcAWNHoH",
+          "name": "Капитан очевидность"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Telegram Trigger": [
+      {
+        "json": {
+          "update_id": 248815789,
+          "message": {
+            "message_id": 143,
+            "from": {
+              "id": 1134336954,
+              "is_bot": false,
+              "first_name": "﹒,",
+              "username": "arrogance21",
+              "language_code": "ru"
+            },
+            "chat": {
+              "id": 1134336954,
+              "first_name": "﹒,",
+              "username": "arrogance21",
+              "type": "private"
+            },
+            "date": 1788358356,
+            "text": "Встреча с Мариной"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3961b665-41ee-4e28-b12a-af5c00b3a992",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d646cc7862ffcffd5a2c0bc75e76eaedde65a67ec0faf4295672d52d51cfa7f"
+  },
+  "id": "kZULXkpPZHLD9kSk",
+  "tags": []
+}
